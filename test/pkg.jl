@@ -538,6 +538,15 @@ temp_pkg_dir() do project_path
     end
 end
 
+@testset "Pkg.add tarballs from GitLab" begin
+    Pkg.add(PackageSpec(name=TEST_PKG.name,
+                        url="https://gitlab.com/ararslan/Example.jl",
+                        version=v"0.3.0"),
+            use_only_tarballs_for_downloads=true)
+    @test Pkg.API.__installed()[TEST_PKG.name] == v"0.3.0"
+    Pkg.rm(TEST_PKG.name)
+end
+
 include("repl.jl")
 include("api.jl")
 
