@@ -540,7 +540,8 @@ end
 
 @testset "Pkg.add tarballs from GitLab" begin
     Pkg.add(PackageSpec(name=TEST_PKG.name,
-                        url="https://gitlab.com/ararslan/Example.jl.git",
+                        uuid="a09ffb86-63c6-4ccb-9ae4-90af809fc2d9",
+                        url="https://gitlab.com/ararslan/Example.jl",
                         version=v"0.3.0"),
             use_only_tarballs_for_downloads=true)
     @test Pkg.API.__installed()[TEST_PKG.name] == v"0.3.0"
