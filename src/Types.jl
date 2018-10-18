@@ -928,8 +928,8 @@ function collect_registries(depot::String)
     regs = RegistrySpec[]
     ispath(d) || return regs
     for name in readdir(d)
-        for slug in readdir(joinpath(d, name))
-            file = joinpath(d, name, slug, "Registry.toml")
+        # for slug in readdir(joinpath(d, name))
+            file = joinpath(d, name, #=slug,=# "Registry.toml")
             if isfile(file)
                 registry = read_registry(file)
                 # verify_registry(registry)
@@ -939,7 +939,7 @@ function collect_registries(depot::String)
                                     path = dirname(file))
                 push!(regs, spec)
             end
-        end
+        # end
     end
     return regs
 end
@@ -1007,17 +1007,25 @@ function clone_or_cp_registries(ctx::Context, regs::Vector{RegistrySpec}, depot:
         registry = read_registry(joinpath(tmp, "Registry.toml"); cache=false) # don't cache this tmp registry
         verify_registry(registry)
         # copy to `depot`
-        slug = Base.package_slug(UUID(registry["uuid"]))
-        regpath = joinpath(depot, "registries", registry["name"], slug)
+        # slug = Base.package_slug(UUID(registry["uuid"]))
+        regpath = joinpath(depot, "registries", registry["name"]#=, slug=#)
         ispath(dirname(regpath)) || mkpath(dirname(regpath))
         if isdir_windows_workaround(regpath)
             existing_registry = read_registry(joinpath(regpath, "Registry.toml"))
-            @assert registry["uuid"] == existing_registry["uuid"]
-            @info("registry `$(registry["name"])` already exist in `$(Base.contractuser(regpath))`.")
+            if registry["uuid"] == existing_registry["uuid"]
+                @info("registry `$(registry["name"])` already exist in `$(Base.contractuser(regpath))`.")
+            else
+                throw(PkgError("registry `$(registry["name"])=\"$(registry["uuid"])\"` conflicts with " *
+                    "existing registry `$(existing_registry["name"])=\"$(existing_registry["uuid"])\"`. " *
+                    "To install it you can clone it manually into " *
+                    "`$(Base.contractuser(joinpath(depot, "registries", registry["name"]*"_2")))` or similar."))
+            end
         else
             cp(tmp, regpath)
             printpkgstyle(stdout, :Added, "registry `$(registry["name"])` to `$(Base.contractuser(regpath))`")
         end
+        # Clean up
+        Base.rm(tmp; recursive=true, force=true)
     end
     return nothing
 end

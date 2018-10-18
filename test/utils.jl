@@ -34,8 +34,8 @@ function temp_pkg_dir(fn::Function)
                     push!(LOAD_PATH, "@", "@v#.#", "@stdlib")
                     push!(DEPOT_PATH, depot_dir)
                     # copy the general registry to tmp depot
-                    mkpath(joinpath(depot_dir, "registries", "General"))
-                    cp(generaldir, joinpath(depot_dir, "registries", "General", "SxLXF"))
+                    mkpath(joinpath(depot_dir, "registries"#=, "General"=#))
+                    cp(generaldir, joinpath(depot_dir, "registries", "General"#=, "SxLXF"=#))
                     Pkg.UPDATED_REGISTRY_THIS_SESSION[] = true
                     fn(env_dir)
                 end

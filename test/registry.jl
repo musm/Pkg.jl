@@ -64,9 +64,16 @@ function is_pkg_available(pkg::PackageSpec)
     return in(pkg.uuid, uuids)
 end
 
+function with_depot2(f)
+    Base.DEPOT_PATH[1:2] .= Base.DEPOT_PATH[2:-1:1]
+    f()
+    Base.DEPOT_PATH[1:2] .= Base.DEPOT_PATH[2:-1:1]
+end
+
 
 @testset "registries" begin
-    temp_pkg_dir() do depot
+    temp_pkg_dir() do depot; mktempdir() do depot2
+        insert!(Base.DEPOT_PATH, 2, depot2)
         # set up registries
         regdir = mktempdir()
         setup_test_registries(regdir)
@@ -119,19 +126,19 @@ end
         test_installed([Foo1])
         @test is_pkg_available(Example1)
         @test !is_pkg_available(Example2)
-        pkgstr("registry add $(Foo2.url)")
+        with_depot2(() -> pkgstr("registry add $(Foo2.url)"))
         test_installed([Foo1, Foo2])
         @test is_pkg_available(Example1)
         @test is_pkg_available(Example2)
 
         # reset installed registries
-        rm(joinpath(depots1(), "registries"); force=true, recursive=true)
+        rm.(joinpath.(Base.DEPOT_PATH[1:2], "registries"); force=true, recursive=true)
 
         Registry.add(RegistrySpec(url = Foo1.url))
         test_installed([Foo1])
         @test is_pkg_available(Example1)
         @test !is_pkg_available(Example2)
-        Registry.add(RegistrySpec(url = Foo2.url))
+        with_depot2(() -> Registry.add(RegistrySpec(url = Foo2.url)))
         test_installed([Foo1, Foo2])
         @test is_pkg_available(Example1)
         @test is_pkg_available(Example2)
@@ -170,7 +177,7 @@ end
         @test !is_pkg_available(Example2)
 
         Registry.add(RegistrySpec(url = Foo1.url))
-        Registry.add(RegistrySpec(url = Foo2.url))
+        with_depot2(() -> Registry.add(RegistrySpec(url = Foo2.url)))
         test_installed([Foo1, Foo2])
         @test is_pkg_available(Example1)
         @test is_pkg_available(Example2)
@@ -192,23 +199,24 @@ end
         @test !is_pkg_available(Example2)
 
         # multiple registries on the same time
-        pkgstr("registry add General $(Foo1.url) $(Foo2.url)")
+        pkgstr("registry add General $(Foo1.url)")
+        with_depot2(() -> pkgstr("registry add $(Foo2.url)"))
         test_installed([General, Foo1, Foo2])
-        @test is_pkg_available(Example1)
+        @test is_pkg_available(Example)
         @test is_pkg_available(Example1)
         @test is_pkg_available(Example2)
         pkgstr("registry up General $(Foo1.uuid) $(Foo2.name)=$(Foo2.uuid)")
         pkgstr("registry rm General $(Foo1.uuid) $(Foo2.name)=$(Foo2.uuid)")
         test_installed([])
-        @test !is_pkg_available(Example1)
+        @test !is_pkg_available(Example)
         @test !is_pkg_available(Example1)
         @test !is_pkg_available(Example2)
 
         Registry.add([RegistrySpec("General"),
-                      RegistrySpec(url = Foo1.url),
-                      RegistrySpec(url = Foo2.url)])
+                      RegistrySpec(url = Foo1.url)])
+        with_depot2(() -> Registry.add([RegistrySpec(url = Foo2.url)]))
         test_installed([General, Foo1, Foo2])
-        @test is_pkg_available(Example1)
+        @test is_pkg_available(Example)
         @test is_pkg_available(Example1)
         @test is_pkg_available(Example2)
         Registry.update([RegistrySpec("General"),
@@ -218,11 +226,16 @@ end
                      RegistrySpec(uuid = Foo1.uuid),
                      RegistrySpec(name = Foo2.name, uuid = Foo2.uuid)])
         test_installed([])
-        @test !is_pkg_available(Example1)
+        @test !is_pkg_available(Example)
         @test !is_pkg_available(Example1)
         @test !is_pkg_available(Example2)
 
-    end
+        # Trying to add a registry with the same name as existing one
+        pkgstr("registry add $(Foo1.url)")
+        @test_throws PkgError pkgstr("registry add $(Foo2.url)")
+        @test_throws PkgError Registry.add([RegistrySpec(url = Foo2.url)])
+
+    end end
 end
 
 end # module
